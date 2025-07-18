@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>日本の残業（時間外労働）完全ガイド</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Professional Blue & Neutral Gray -->
+    <!-- Application Structure Plan: The application is designed as a one-page guide, flowing from foundational knowledge to a practical tool. The structure is: 1. Basic Definitions, 2. Premium Rate Details, 3. Overtime Caps Explained, 4. Interactive Calculator. This top-down approach allows a user (employee or manager) to first grasp the core concepts before using them in the calculator. A sticky navigation bar enables users to jump directly to the section they need, accommodating both learners and those who just want to calculate their pay. This task-oriented design makes complex legal information digestible and immediately useful. -->
+    <!-- Visualization & Content Choices: 
+        - Report Info: Different types of overtime and their legally mandated premium pay rates (e.g., standard 1.25x, late-night 1.25x, holiday 1.35x). -> Goal: Inform, Compare. -> Viz/Presentation: An interactive tabbed component. -> Interaction: User clicks a tab ('時間外', '深夜', '休日') to view its specific premium rate, a description, and a calculation example. -> Justification: This organizes related but distinct information cleanly, preventing overload and allowing for easy comparison. -> Library/Method: HTML/CSS/Tailwind + JS for dynamic content display.
+        - Report Info: The multi-layered system of overtime hour caps (monthly/yearly general caps and special provision caps). -> Goal: Organize, Clarify Hierarchy. -> Viz/Presentation: A structured diagram built with HTML/CSS. -> Interaction: No complex interaction needed; the visual structure itself (using boxes and lines) clarifies the relationship between the general principle and the exceptions, which is more effective than plain text. -> Justification: Visually simplifies a complex legal hierarchy, making the limits and their conditions easier to remember. -> Library/Method: HTML/CSS/Tailwind.
+        - Report Info: Overtime pay calculation formula. -> Goal: Personalize, Inform. -> Viz/Presentation: An interactive form with input fields and a dynamic bar chart. -> Interaction: The user enters their hourly wage and overtime hours. On clicking 'Calculate', a JS function computes the pay, updates the Chart.js bar chart to show the breakdown of total pay, and displays the detailed results. -> Justification: Transforms a manual calculation into an error-free, instant, and visual tool, giving users a clear picture of their earnings. -> Library: Chart.js (Canvas).
+        - CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Noto Sans JP', sans-serif;
+            background-color: #f4f7f9;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px;
+            max-height: 45vh;
+        }
+        .tab-active {
+            border-bottom-color: #3b82f6;
+            color: #3b82f6;
+            font-weight: 600;
+        }
+        .tab-inactive {
+            border-bottom-color: transparent;
+            color: #6b7280;
+        }
+        .limit-box {
+            border: 2px solid #e5e7eb;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            text-align: center;
+            background-color: white;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        .limit-connector {
+            width: 2px;
+            background-color: #d1d5db;
+            margin: 0 auto;
+        }
+    </style>
+</head>
+<body class="text-gray-800">
+
+    <header class="bg-white/90 backdrop-blur-md shadow-sm sticky top-0 z-50">
+        <nav class="container mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex-shrink-0">
+                    <h1 class="text-xl font-bold text-gray-900">残業のルール解説</h1>
+                </div>
+                <div class="hidden md:block">
+                    <div class="ml-10 flex items-baseline space-x-4">
+                        <a href="#basics" class="text-gray-600 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium">基本</a>
+                        <a href="#rates" class="text-gray-600 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium">割増賃金</a>
+                        <a href="#limits" class="text-gray-600 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium">上限規制</a>
+                        <a href="#calculator" class="text-gray-600 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium">計算ツール</a>
+                    </div>
+                </div>
+                <div class="md:hidden">
+                    <select id="mobile-nav" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5">
+                        <option value="#basics">基本</option>
+                        <option value="#rates">割増賃金</option>
+                        <option value="#limits">上限規制</option>
+                        <option value="#calculator">計算ツール</option>
+                    </select>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main class="container mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+
+        <section id="basics" class="scroll-mt-20 mb-16">
+            <div class="text-center mb-10">
+                <h2 class="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">残業の基本</h2>
+                <p class="mt-4 text-lg leading-8 text-gray-600">まず知っておきたい、時間外労働の基礎知識。</p>
+            </div>
+            <div class="bg-white p-6 sm:p-8 rounded-xl shadow-lg">
+                <p class="text-base text-gray-700 leading-relaxed mb-8">
+                    このセクションでは、日本の労働基準法における「残業（時間外労働）」の定義と、それを可能にするための必須条件である「36（サブロク）協定」について解説します。法律で定められた労働時間を超えて働くことがなぜ可能なのか、そしてそのためにはどのような手続きが会社に求められるのか、基本的なルールを理解しましょう。
+                </p>
+                <div class="grid md:grid-cols-2 gap-8">
+                    <div class="bg-gray-50 p-6 rounded-lg border border-gray-200">
+                        <h3 class="text-xl font-semibold text-gray-900 mb-3 flex items-center">
+                            <span class="bg-blue-100 text-blue-800 text-sm font-bold mr-3 px-2.5 py-1.5 rounded-full">1</span>
+                            残業（時間外労働）とは？
+                        </h3>
+                        <p class="text-gray-700">労働基準法で定められた法定労働時間（原則として<strong class="text-blue-600">1日8時間、1週40時間</strong>）を超えて働くことを指します。この時間を超えて労働させる場合、会社は法律で定められた割増賃金を支払う義務があります。</p>
+                    </div>
+                    <div class="bg-gray-50 p-6 rounded-lg border border-gray-200">
+                        <h3 class="text-xl font-semibold text-gray-900 mb-3 flex items-center">
+                            <span class="bg-blue-100 text-blue-800 text-sm font-bold mr-3 px-2.5 py-1.5 rounded-full">2</span>
+                            36（サブロク）協定とは？
+                        </h3>
+                        <p class="text-gray-700">会社が従業員に法定労働時間を超えて残業を命じるために必要な労使協定です。労働基準法第36条に基づいているため「36協定」と呼ばれます。この協定を労働基準監督署に届け出て、<strong class="text-blue-600">初めて残業が法的に可能</strong>になります。</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="rates" class="scroll-mt-20 mb-16">
+            <div class="text-center mb-10">
+                <h2 class="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">割増賃金の種類と割増率</h2>
+                <p class="mt-4 text-lg leading-8 text-gray-600">残業の種類によって支払われる割増率が変わります。</p>
+            </div>
+            <div class="bg-white p-6 sm:p-8 rounded-xl shadow-lg">
+                 <p class="text-base text-gray-700 leading-relaxed mb-8">
+                    残業代は一律ではありません。働く時間帯や曜日によって、割増率が法律で細かく定められています。ここでは、「時間外労働」「休日労働」「深夜労働」の3つの主要なカテゴリについて、それぞれの割増率と具体的な計算例をタブで切り替えながら確認できます。複数の条件が重なった場合の計算方法も解説します。
+                </p>
+                <div class="border-b border-gray-200 mb-6">
+                    <nav class="-mb-px flex space-x-6" aria-label="Tabs">
+                        <button class="rate-tab tab-active whitespace-nowrap py-4 px-1 border-b-2 text-sm" data-target="panel-1">時間外労働</button>
+                        <button class="rate-tab tab-inactive whitespace-nowrap py-4 px-1 border-b-2 text-sm" data-target="panel-2">休日労働</button>
+                        <button class="rate-tab tab-inactive whitespace-nowrap py-4 px-1 border-b-2 text-sm" data-target="panel-3">深夜労働</button>
+                    </nav>
+                </div>
+                <div>
+                    <div id="panel-1" class="rate-panel">
+                        <h3 class="text-2xl font-bold text-blue-600">25%以上増</h3>
+                        <p class="mt-2 text-gray-700">法定労働時間を超えた労働に対して支払われます。</p>
+                        <div class="mt-4 bg-gray-50 p-4 rounded-lg">
+                            <h4 class="font-semibold">補足</h4>
+                            <p class="text-sm text-gray-600 mt-1">1か月の時間外労働が60時間を超えた場合、その超過分については割増率が<strong class="text-red-600">50%以上</strong>になります（中小企業も2023年4月から適用）。</p>
+                        </div>
+                    </div>
+                    <div id="panel-2" class="rate-panel hidden">
+                        <h3 class="text-2xl font-bold text-green-600">35%以上増</h3>
+                        <p class="mt-2 text-gray-700">法定休日（週に1日または4週に4日）の労働に対して支払われます。会社の定める所定休日とは異なる場合があるので注意が必要です。</p>
+                    </div>
+                    <div id="panel-3" class="rate-panel hidden">
+                        <h3 class="text-2xl font-bold text-purple-600">25%以上増</h3>
+                        <p class="mt-2 text-gray-700">午後10時から翌日午前5時までの労働に対して支払われます。時間外労働と重なる場合、割増率は合算されます。</p>
+                        <div class="mt-4 bg-gray-50 p-4 rounded-lg">
+                            <h4 class="font-semibold">例：時間外労働＋深夜労働</h4>
+                            <p class="text-sm text-gray-600 mt-1">法定労働時間を超え、かつ深夜に働いた場合：<br>時間外割増(25%) + 深夜割増(25%) = <strong class="text-red-600">合計50%以上</strong>の割増となります。</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="limits" class="scroll-mt-20 mb-16">
+             <div class="text-center mb-10">
+                <h2 class="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">残業時間の上限規制</h2>
+                <p class="mt-4 text-lg leading-8 text-gray-600">法律で定められた、残業させることができる時間の上限です。</p>
+            </div>
+             <div class="bg-white p-6 sm:p-8 rounded-xl shadow-lg">
+                <p class="text-base text-gray-700 leading-relaxed mb-8">
+                    働き方改革により、残業時間には法律で厳格な上限が設けられました。このセクションでは、その上限規制を図解で分かりやすく解説します。「原則」としての上限と、臨時的な特別な事情がある場合に適用される「特別条項」の関係性を理解することが重要です。これらの上限を超えた残業は法律違反となります。
+                </p>
+                <div class="space-y-4">
+                    <div class="limit-box bg-blue-50 border-blue-200">
+                        <h3 class="text-lg font-bold text-blue-800">原則</h3>
+                        <p class="text-2xl font-bold text-gray-900 mt-2">月45時間・年360時間</p>
+                    </div>
+                    <div class="h-6 limit-connector"></div>
+                    <div class="text-center font-bold text-gray-500">▼ 臨時的な特別な事情がある場合 ▼</div>
+                    <div class="h-6 limit-connector"></div>
+                    <div class="limit-box bg-red-50 border-red-200">
+                        <h3 class="text-lg font-bold text-red-800">特別条項（下記すべてを満たす必要あり）</h3>
+                        <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-4 text-left">
+                            <div class="bg-white p-3 rounded">
+                                <p class="font-semibold">① 年間</p>
+                                <p class="text-lg font-bold text-gray-800">720時間以内</p>
+                            </div>
+                            <div class="bg-white p-3 rounded">
+                                <p class="font-semibold">② 複数月平均</p>
+                                <p class="text-lg font-bold text-gray-800">80時間以内</p>
+                                <p class="text-xs text-gray-500">休日労働を含む</p>
+                            </div>
+                            <div class="bg-white p-3 rounded">
+                                <p class="font-semibold">③ 単月</p>
+                                <p class="text-lg font-bold text-gray-800">100時間未満</p>
+                                <p class="text-xs text-gray-500">休日労働を含む</p>
+                            </div>
+                            <div class="bg-white p-3 rounded">
+                                <p class="font-semibold">④ 原則超過</p>
+                                <p class="text-lg font-bold text-gray-800">年6回まで</p>
+                                <p class="text-xs text-gray-500">月45h超は年半分まで</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="calculator" class="scroll-mt-20">
+            <div class="text-center mb-10">
+                <h2 class="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">残業代 計算ツール</h2>
+                <p class="mt-4 text-lg leading-8 text-gray-600">あなたの残業代をシミュレーションしてみましょう。</p>
+            </div>
+            <div class="bg-white p-6 sm:p-8 rounded-xl shadow-lg">
+                <p class="text-base text-gray-700 leading-relaxed mb-8">
+                    ご自身の時間単価（時給）と、1ヶ月の残業時間を入力して「計算する」ボタンを押してください。支払われるべき残業代の目安が自動で計算され、グラフで内訳が表示されます。月給制の方は、まずご自身の時間単価を計算する必要があります。（計算式：月給 ÷ 1ヶ月の平均所定労働時間）
+                </p>
+                <div class="grid lg:grid-cols-2 gap-8 items-start">
+                    <div class="space-y-4">
+                        <div>
+                            <label for="hourly-wage" class="block text-sm font-medium text-gray-700">あなたの時間単価 (円)</label>
+                            <input type="number" id="hourly-wage" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2" placeholder="例: 1500">
+                        </div>
+                        <div>
+                            <label for="normal-overtime" class="block text-sm font-medium text-gray-700">時間外労働 (月60時間以内) (時間)</label>
+                            <input type="number" id="normal-overtime" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2" placeholder="例: 30">
+                        </div>
+                        <div>
+                            <label for="extra-overtime" class="block text-sm font-medium text-gray-700">時間外労働 (月60時間超) (時間)</label>
+                            <input type="number" id="extra-overtime" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2" placeholder="例: 10">
+                        </div>
+                         <div>
+                            <label for="holiday-work" class="block text-sm font-medium text-gray-700">休日労働 (時間)</label>
+                            <input type="number" id="holiday-work" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2" placeholder="例: 8">
+                        </div>
+                        <div>
+                            <label for="late-night-work" class="block text-sm font-medium text-gray-700">深夜労働 (時間)</label>
+                            <input type="number" id="late-night-work" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2" placeholder="例: 20">
+                        </div>
+                        <button id="calculate-btn" class="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">計算する</button>
+                    </div>
+                    <div class="bg-gray-50 p-6 rounded-lg">
+                        <h3 class="text-lg font-semibold mb-4 text-center">計算結果</h3>
+                        <div class="chart-container">
+                            <canvas id="overtimeChart"></canvas>
+                        </div>
+                        <div id="result-text" class="mt-6 text-center">
+                            <p class="text-gray-700">合計残業代</p>
+                            <p class="text-3xl font-bold text-blue-600 my-1">0 円</p>
+                            <p id="result-breakdown" class="text-sm text-gray-500">詳細がここに表示されます</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="bg-gray-800 mt-16">
+        <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-4 text-center text-gray-400 text-sm">
+            <p>&copy; 2025 日本の残業解説. このサイトは一般的な情報提供を目的としています。</p>
+            <p>個別の事案については、弁護士や社会保険労務士などの専門家にご相談ください。</p>
+        </div>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Tab functionality
+            const tabs = document.querySelectorAll('.rate-tab');
+            const panels = document.querySelectorAll('.rate-panel');
+
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    tabs.forEach(item => {
+                        item.classList.remove('tab-active');
+                        item.classList.add('tab-inactive');
+                    });
+                    tab.classList.add('tab-active');
+                    tab.classList.remove('tab-inactive');
+
+                    panels.forEach(panel => {
+                        panel.classList.add('hidden');
+                    });
+                    document.getElementById(tab.dataset.target).classList.remove('hidden');
+                });
+            });
+
+            // Smooth scrolling
+            document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+                anchor.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    document.querySelector(this.getAttribute('href')).scrollIntoView({
+                        behavior: 'smooth'
+                    });
+                });
+            });
+
+             // Mobile navigation
+            document.getElementById('mobile-nav').addEventListener('change', function(e) {
+                 document.querySelector(e.target.value).scrollIntoView({
+                    behavior: 'smooth'
+                });
+            });
+
+            // Calculator
+            const calculateBtn = document.getElementById('calculate-btn');
+            const resultTextEl = document.querySelector('#result-text p:nth-child(2)');
+            const resultBreakdownEl = document.getElementById('result-breakdown');
+            const rates = {
+                normal: 1.25,
+                extra: 1.50,
+                holiday: 1.35,
+                lateNight: 0.25 // This is an additional rate
+            };
+
+            const chartCtx = document.getElementById('overtimeChart').getContext('2d');
+            let overtimeChart = new Chart(chartCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['時間外(～60h)', '時間外(60h超)', '休日', '深夜'],
+                    datasets: [{
+                        label: '残業代',
+                        data: [0, 0, 0, 0],
+                        backgroundColor: [
+                            'rgba(59, 130, 246, 0.7)',
+                            'rgba(239, 68, 68, 0.7)',
+                            'rgba(22, 163, 74, 0.7)',
+                            'rgba(147, 51, 234, 0.7)'
+                        ],
+                        borderColor: [
+                            'rgba(59, 130, 246, 1)',
+                            'rgba(239, 68, 68, 1)',
+                            'rgba(22, 163, 74, 1)',
+                            'rgba(147, 51, 234, 1)'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return value.toLocaleString('ja-JP') + '円';
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.parsed.y.toLocaleString('ja-JP') + '円';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            calculateBtn.addEventListener('click', () => {
+                const hourlyWage = parseFloat(document.getElementById('hourly-wage').value) || 0;
+                const normalOvertime = parseFloat(document.getElementById('normal-overtime').value) || 0;
+                const extraOvertime = parseFloat(document.getElementById('extra-overtime').value) || 0;
+                const holidayWork = parseFloat(document.getElementById('holiday-work').value) || 0;
+                const lateNightWork = parseFloat(document.getElementById('late-night-work').value) || 0;
+
+                if (hourlyWage <= 0) {
+                    alert('有効な時間単価を入力してください。');
+                    return;
+                }
+
+                const normalPay = Math.floor(hourlyWage * rates.normal * normalOvertime);
+                const extraPay = Math.floor(hourlyWage * rates.extra * extraOvertime);
+                const holidayPay = Math.floor(hourlyWage * rates.holiday * holidayWork);
+                const lateNightPay = Math.floor(hourlyWage * rates.lateNight * lateNightWork);
+                
+                const totalPay = normalPay + extraPay + holidayPay + lateNightPay;
+                
+                resultTextEl.textContent = totalPay.toLocaleString('ja-JP') + ' 円';
+                
+                let breakdown = [];
+                if(normalPay > 0) breakdown.push(`時間外(${normalOvertime}h): ${normalPay.toLocaleString()}円`);
+                if(extraPay > 0) breakdown.push(`時間外超(${extraOvertime}h): ${extraPay.toLocaleString()}円`);
+                if(holidayPay > 0) breakdown.push(`休日(${holidayWork}h): ${holidayPay.toLocaleString()}円`);
+                if(lateNightWork > 0) breakdown.push(`深夜加算(${lateNightWork}h): ${lateNightPay.toLocaleString()}円`);
+
+                resultBreakdownEl.textContent = breakdown.length > 0 ? breakdown.join(' + ') : '残業時間を選択してください';
+
+                // Update chart
+                overtimeChart.data.datasets[0].data = [normalPay, extraPay, holidayPay, lateNightPay];
+                overtimeChart.update();
+            });
+        });
+    </script>
+</body>
+</html>
